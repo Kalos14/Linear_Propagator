@@ -90,8 +90,9 @@ def calibrate_on_train(tt_train: pd.DataFrame, models: list[str]) -> dict:
     """
     tt_train = tt_train.copy()
     pp_batch.complete_data_columns(tt_train, split_dates=False)
-
-    use_group = ("hdim2" in models)  # faster + avoids nasty edge cases
+    #use_group = ("hdim2" in models)  # faster + avoids nasty edge cases
+    use_group = False
+    print("entrera")
     cal = pp_batch.calibrate_models(
         tt_train,
         nfft="pad",
@@ -144,7 +145,6 @@ def run_modeA_for_ticker(
     models: list[str] = ["cim", "tim1", "tim2", "hdim2"],
 ) -> None:
     tt = load_ticker_tt(CLEAN_ROOT, ticker)
-
     tt_train = tt[tt["date"] < CRASH_DAY].copy()
     tt_test = tt[tt["date"] == CRASH_DAY].copy()
 
@@ -174,8 +174,10 @@ def run_modeA_for_ticker(
 
     # choose alarm model (prefer HDIM2 > TIM2 > TIM1 > CIM)
     if "hdim2" in models and "r_hdim2" in pred_test.columns:
+        print("lele")
         alarm_model = "r_hdim2"
     elif "tim2" in models and "r_tim2" in pred_test.columns:
+        print("lele")
         alarm_model = "r_tim2"
     elif "tim1" in models and "r_tim1" in pred_test.columns:
         alarm_model = "r_tim1"
@@ -187,13 +189,17 @@ def run_modeA_for_ticker(
     mu = np.nanmean(train_Rpred)
     sd = np.nanstd(train_Rpred)
     pred_thresh = mu - PRED_Z * sd
-
     # forward predicted sums for each model on crash day
     series = {}
     for col in ["r_cim", "r_tim1", "r_tim2", "r_hdim2"]:
         if col in pred_test.columns:
             series[col] = rolling_sum_forward(pred_test[col].to_numpy(), N_HORIZON)
 
+    ## MSE between true and predicted
+    for col in ["r_cim", "r_tim1", "r_tim2", "r_hdim2"]:
+        if col in series:
+            mse = np.nanmean((r_true - series[col]) ** 2)
+            print(f"  MSE({col}): {mse:.6g}")
     Rpred_alarm = series[alarm_model]
     alarm_idx = first_crossing(Rpred_alarm, pred_thresh)
 
@@ -272,4 +278,6 @@ def run_modeA_for_ticker(
 
 if __name__ == "__main__":
     # Now includes HDIM2
-    run_modeA_for_ticker("ORCL.OQ", models=["cim", "tim1", "tim2"])
+    run_modeA_for_ticker("ORCL.OQ", models=["cim", "tim1", "tim2", "hdim2"])
+    # run_modeA_for_ticker("ORCL.OQ", models=["cim", "tim1", "hdim2"])
+    # run_modeA_for_ticker("ORCL.OQ", models=["hdim2"])

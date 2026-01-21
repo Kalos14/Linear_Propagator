@@ -72,7 +72,6 @@ def calibrate_models(
     Calculate sign & price change correlations, response functions, 
     and fitted propagator kernels for trades in DataFrame.
     """
-    
     # store results
     res = {}
     
@@ -81,13 +80,12 @@ def calibrate_models(
     
     # apply intra-day mask
     tt = tt[mask0]
-        
     # get same optimal nfft used by pna functions
     nfft_opt, events_required = scorr.get_nfft(nfft, tt.groupby('date')['r1'])
-    maxlag = int(min(nfft_opt/2, events_required))
-    
+    # maxlag = int(min(nfft_opt/2, events_required))
+    maxlag = 256  ###########################################    
     res['maxlag'] = maxlag
-    
+    print(maxlag)
     # correlations and responses
     # ------------------------------------------------------------------------
     kwargs = {'subtract_mean': False, 'norm': 'cov'}
@@ -106,9 +104,11 @@ def calibrate_models(
         res['nccorr'] = scorr.fftcrop(scorr.xcorr(sn, sc, **kwargs), maxlag)
         # triple cross correlations
         if 'hdim2' in models:
+            print("a")
             res['ccccorr'] = scorr.x3corr(
                 c, sc, sc, nfft=2*maxlag, pad=maxlag, **kwargs
             )
+            print("b")
             res['nnccorr'] = scorr.x3corr(
                 c, sn, sn, nfft=2*maxlag, pad=maxlag, **kwargs
             )
