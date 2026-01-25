@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-Flash-crash Mode A with sell-pressure conditioning (buy/sell framework).
+Flash-crash Mode with sell-pressure conditioning (buy/sell framework).
 
 High-level idea
 - Build a causal sell-pressure proxy from past trade signs.
@@ -18,8 +18,7 @@ Alarm rule (method 1: quantile threshold)
 - Trigger if crash-day predicted forward sum crosses below the threshold
 
 Note
-- Forward N-trade sums use future order flow within the day, so they are mainly a diagnostic.
-  The goal here is to compare signals consistently with the previous Mode A script.
+- To run the model insert in the terminal: python flashcrash_sellpressure_framework.py --ticker <TICKER> --N 200 --crash-thresh -0.02
 """
 
 from pathlib import Path
@@ -44,13 +43,11 @@ DEFAULT_NS_PRESSURE = 50
 DEFAULT_TAU = 0.20
 DEFAULT_ALPHA = 12.0
 
-# Alarm method 1: quantile threshold on train forward sums
+# Alarm method: quantile threshold on train forward sums
 DEFAULT_ALARM_Q = 0.001  # 0.1% quantile
 
 
-# -------------------------
-# IO
-# -------------------------
+
 def load_ticker_tt(clean_root: Path, ticker: str) -> pd.DataFrame:
     tdir = clean_root / ticker
     if not tdir.exists():
@@ -66,7 +63,7 @@ def load_ticker_tt(clean_root: Path, ticker: str) -> pd.DataFrame:
     df = lf.collect().to_pandas()
 
     df["date"] = pd.to_datetime(df["date"]).dt.date
-    df["ts_ms"] = df["ts_ms"].astype(np.int64)   # stored as integer timestamp (ns units in your pipeline)
+    df["ts_ms"] = df["ts_ms"].astype(np.int64)  
     df["sign"] = df["sign"].astype(np.int8)
     df["change"] = df["change"].astype(bool)
     df["r1"] = df["r1"].astype(float)
@@ -163,7 +160,7 @@ def add_sell_pressure_features(
 
 
 # -------------------------
-# Calibration utilities (TIM2-style on two continuous channels)
+# Calibration utilities 
 # -------------------------
 def _return_response(ret: str, x: np.ndarray, maxlag: int):
     ret = ret.lower()
@@ -307,7 +304,7 @@ def delta_c_from_train(tt_train: pd.DataFrame) -> float:
     return float(x.mean()) if len(x) else np.nan
 
 
-def run_modeA_sellpressure(
+def run_mode_sellpressure(
     tt: pd.DataFrame,
     ticker: str = "TICKER",
     crash_day=DEFAULT_CRASH_DAY,
@@ -461,7 +458,7 @@ def run_modeA_sellpressure(
 
 
 # -------------------------
-# CLI
+# main
 # -------------------------
 def main():
     ap = argparse.ArgumentParser(description="Flash crash Mode A with sell-pressure conditioning (quantile alarm).")
@@ -488,7 +485,7 @@ def main():
     crash_day = pd.Timestamp(args.crash_day).date()
 
     tt = load_ticker_tt(clean_root, args.ticker)
-    run_modeA_sellpressure(
+    run_mode_sellpressure(
         tt,
         ticker=args.ticker,
         crash_day=crash_day,
