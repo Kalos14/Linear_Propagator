@@ -92,7 +92,6 @@ def calibrate_on_train(tt_train: pd.DataFrame, models: list[str]) -> dict:
     pp_batch.complete_data_columns(tt_train, split_dates=False)
     #use_group = ("hdim2" in models)  # faster + avoids nasty edge cases
     use_group = False
-    print("entrera")
     cal = pp_batch.calibrate_models(
         tt_train,
         nfft="pad",
@@ -170,14 +169,22 @@ def run_modeA_for_ticker(
     ts_valid = align_valid(pred_test["ts_ms"].to_numpy(), r_true)
     dt_valid = to_time_of_day(ts_valid)
 
-    crash_idx = first_crossing(r_true, CRASH_TRUE_THRESH)
+    train_Rtrue = rolling_sum_forward(tt_train["r1"].to_numpy(), N_HORIZON)
+    mu_true = np.nanmean(train_Rtrue)
+    sd_true = np.nanstd(train_Rtrue)
+    true_thresh_train = mu_true - PRED_Z * sd_true
+
+    true_thresh_fixed = CRASH_TRUE_THRESH  
+    ALPHA = 0.7
+    true_thresh = ALPHA * true_thresh_fixed + (1 - ALPHA) * true_thresh_train
+
+    crash_idx = first_crossing(r_true, true_thresh)
+    
 
     # choose alarm model (prefer HDIM2 > TIM2 > TIM1 > CIM)
     if "hdim2" in models and "r_hdim2" in pred_test.columns:
-        print("lele")
         alarm_model = "r_hdim2"
     elif "tim2" in models and "r_tim2" in pred_test.columns:
-        print("lele")
         alarm_model = "r_tim2"
     elif "tim1" in models and "r_tim1" in pred_test.columns:
         alarm_model = "r_tim1"
@@ -278,6 +285,26 @@ def run_modeA_for_ticker(
 
 if __name__ == "__main__":
     # Now includes HDIM2
-    run_modeA_for_ticker("ORCL.OQ", models=["cim", "tim1", "tim2", "hdim2"])
-    # run_modeA_for_ticker("ORCL.OQ", models=["cim", "tim1", "hdim2"])
-    # run_modeA_for_ticker("ORCL.OQ", models=["hdim2"])
+    print("running everything...")
+    tickers = [
+        "AAPL.OQ",
+        "AMGN.OQ",
+        "AMZN.OQ",
+        "BIIB.OQ",
+        "CELG.OQ",
+        "COST.OQ",
+        "CSCO.OQ",
+        "GILD.OQ",
+        "GOOG.OQ",
+        "INTC.OQ",
+        "MCD.N",
+        "MMM.N",
+        "MSFT.OQ",
+        "ORCL.OQ",
+        "PCLN.OQ"
+    ]
+
+
+    for t in tickers:
+        print(f"[run] {t}")
+        run_modeA_for_ticker(t, models=["cim", "tim1", "tim2", "hdim2"])
